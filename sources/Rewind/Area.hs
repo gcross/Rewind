@@ -7,13 +7,17 @@
 module Rewind.Area where
 
 import Control.Lens
-    (Index
+    (At(..)
+    ,Contains(..)
+    ,Contravariant
+    ,Index
     ,Ixed(..)
     ,IxValue
     ,(&)
     ,(<&>)
     ,(^.)
     ,(%~)
+    ,containsTest
     ,indexed
     ,makeLenses
     ,to
@@ -42,6 +46,18 @@ makeLenses ''Area
 
 type instance Index Area = XY
 type instance IxValue Area = Place
+
+instance (Contravariant f, Functor f) => Contains f Area where
+    contains = containsTest (\xy area → Map.member xy (area ^. places))
+
+instance At Area where
+    at xy f area =
+        indexed f xy is_member
+        <&>
+        maybe (maybe area insert is_member) insert
+      where
+        is_member = area ^. places ^. to (Map.lookup xy)
+        insert = (area &) . (places %~) . Map.insert xy
 
 instance Functor f ⇒ Ixed f Area where
     ix xy f area =
