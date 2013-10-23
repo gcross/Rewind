@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnicodeSyntax #-}
@@ -11,12 +12,14 @@ import Control.Exception (Exception,throw)
 import Control.Lens
     (Contravariant(..)
     ,Index
+    ,Iso'
     ,Ixed(..)
     ,IxValue
     ,(^.)
     ,(<&>)
     ,(%~)
     ,indexed
+    ,iso
     ,makeLenses
     ,to
     )
@@ -53,20 +56,28 @@ data Place =
     Wall
   | Floor
 
-data Level = Level
+data Bounds = Bounds
     {   _width :: {-# UNPACK #-} !Int
     ,   _height ::{-# UNPACK #-} !Int
+    }
+makeLenses ''Bounds
+
+data Level = Level
+    {   _bounds :: Bounds
     ,   _places :: !(IntMap Place)
     }
 makeLenses ''Level
 
-xy2i :: Level → XY → Int
-xy2i places (XY x y)
-  | x < 0 = throw $ XCoordinateTooSmall x
-  | y < 0 = throw $ YCoordinateTooSmall y
-  | x >= places ^. width = throw $ XCoordinateTooLarge x (places ^. width)
-  | y >= places ^. height = throw $ YCoordinateTooLarge y (places ^. height)
-  | otherwise = x + y * places ^. width
+xy2i :: Bounds → Iso' XY Int
+xy2i bounds = iso forward backward
+  where
+    forward (XY x y)
+      | x < 0 = throw $ XCoordinateTooSmall x
+      | y < 0 = throw $ YCoordinateTooSmall y
+      | x >= bounds ^. width = throw $ XCoordinateTooLarge x (bounds ^. width)
+      | y >= bounds ^. height = throw $ YCoordinateTooLarge y (bounds ^. height)
+      | otherwise = x + y * bounds ^. width
+    backward = uncurry XY . flip divMod (bounds ^. width)
 
 type instance Index Level = XY
 type instance IxValue Level = Place
@@ -80,4 +91,4 @@ instance Functor f ⇒ Ixed f Level where
             )
         <&>
         \place → (places %~ IntMap.insert i place) level
-      where i = xy2i level xy
+      where i = xy ^. xy2i (level ^. bounds)
