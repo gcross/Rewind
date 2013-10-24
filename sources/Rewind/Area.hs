@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UnicodeSyntax #-}
 
 module Rewind.Area where
@@ -13,6 +14,7 @@ import Control.Lens
     ,Index
     ,Ixed(..)
     ,IxValue
+    ,Lens'
     ,(&)
     ,(<&>)
     ,(^.)
@@ -67,24 +69,20 @@ data Place =
   | Floor
 
 data Area = Area
-    {   _translation :: {-# UNPACK #-} !XY
-    ,   _parent :: !(XY → Place)
+    {   _parent :: !(XY → Place)
     ,   _places :: !(Map XY Place)
     }
 makeLenses ''Area
 
-translate :: XY → Area → Area
-translate xy = translation %~ (<> xy)
-
 instance Monoid Area where
-    mempty = Area mempty (const Bedrock) mempty
+    mempty = Area (const Bedrock) mempty
     area1 `mappend` area2 = area2 & places %~ (area1 ^. places <>)
 
 type instance Index Area = XY
 type instance IxValue Area = Place
 
 instance (Contravariant f, Functor f) => Contains f Area where
-    contains = containsTest (\xy area → Map.member (area ^. translation <> xy) (area ^. places))
+    contains = containsTest (\xy area → Map.member xy (area ^. places))
 
 instance At Area where
     at xy f area =
@@ -92,9 +90,8 @@ instance At Area where
         <&>
         maybe (maybe area insert is_member) insert
       where
-        abs_xy = area ^. translation <> xy
-        is_member = area ^. places ^. to (Map.lookup abs_xy)
-        insert = (area &) . (places %~) . Map.insert abs_xy
+        is_member = area ^. places ^. to (Map.lookup xy)
+        insert = (area &) . (places %~) . Map.insert xy
 
 instance Functor f ⇒ Ixed f Area where
     ix xy f area =
@@ -104,9 +101,7 @@ instance Functor f ⇒ Ixed f Area where
                 (area ^. places ^. to (Map.lookup xy))
             )
         <&>
-        (area &) . (places %~) . Map.insert abs_xy
-      where
-        abs_xy = area ^. translation <> xy
+        (area &) . (places %~) . Map.insert xy
 
 
 type instance Index SelectedArea = XY
@@ -124,7 +119,7 @@ instance (Contravariant f, Functor f) => Contains f SelectedArea where
 
 instance At SelectedArea where
     at xy f select
-      | Set.member abs_xy (select ^. selection) =
+      | Set.member xy (select ^. selection) =
             at xy f (select ^. area)
             <&>
             (select &) . (area .~)
@@ -132,28 +127,32 @@ instance At SelectedArea where
             indexed f xy Nothing
             <&>
             const select
-      where
-        abs_xy = select ^. area ^. translation <> xy
 
 instance Functor f ⇒ Ixed f SelectedArea where
     ix xy f select
-      | Set.member abs_xy (select ^. selection) =
+      | Set.member xy (select ^. selection) =
             ix xy f (select ^. area)
             <&>
             (select &) . (area .~)
       | otherwise =
-            indexed f xy (select ^. area ^. parent ^. to ($ abs_xy))
+            indexed f xy (select ^. area ^. parent ^. to ($ xy))
             <&>
             const select
-      where
-        abs_xy = select ^. area ^. translation <> xy
+class IsSelectedArea α where
+    selected_area :: Lens' α SelectedArea
+
+instance IsSelectedArea SelectedArea where
+    selected_area = id
 
 data RectangularArea = RectangularArea
     {   _width :: !Int
     ,   _height :: !Int
-    ,   _selected_area :: !SelectedArea
+    ,   _rectangular_selected_area :: !SelectedArea
     }
 makeLenses ''RectangularArea
+
+instance IsSelectedArea RectangularArea where
+    selected_area = rectangular_selected_area
 
 type instance Index RectangularArea = XY
 type instance IxValue RectangularArea = Place
