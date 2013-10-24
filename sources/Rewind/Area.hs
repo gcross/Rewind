@@ -68,33 +68,27 @@ instance Monoid XY where
 data Place =
     Bedrock
   | Floor
+  deriving (Eq,Ord,Read,Show)
 
-class Places α where
-    type PlacesType α
-    places :: Lens' α (PlacesType α)
+data Box = Box
+    {   _width :: {-# UNPACK #-} !Int
+    ,   _height :: {-# UNPACK #-} !Int
+    ,   _places :: !(Map XY Place)
+    } deriving (Eq,Ord,Read,Show)
+makeLenses ''Box
 
-newtype Area = Area { _area_places :: Map XY Place } deriving (At)
-makeLenses ''Area
+type instance Index Box = XY
+type instance IxValue Box = Place
 
-instance Places Area where
-    type PlacesType Area = Map XY Place
-    places = area_places
-
-type instance Index Area = XY
-type instance IxValue Area = Place
-
-instance (Contravariant f, Functor f) => Contains f Area where
+instance (Contravariant f, Functor f) => Contains f Box where
     contains xy = places . contains xy
+ 
+instance At Box where
+    at xy = places . at xy
 
-instance Functor f ⇒ Ixed f Area where
-    ix xy f a@(Area area) =
-        indexed f xy (fromMaybe Bedrock (Map.lookup xy area))
+instance Functor f ⇒ Ixed f Box where
+    ix xy f box =
+        indexed f xy (Map.findWithDefault Bedrock xy (box ^. places))
         <&>
-        Area . flip (Map.insert xy) area
+        (box &) . (places %~) . Map.insert xy
 
-newtype Selection = Selection { _selection_places :: Set XY }
-makeLenses ''Selection
-
-instance Places Selection where
-    type PlacesType Selection = Set XY
-    places = selection_places
