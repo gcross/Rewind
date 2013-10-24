@@ -68,100 +68,21 @@ data Place =
     Bedrock
   | Floor
 
-data Area = Area
-    {   _parent :: !(XY → Place)
-    ,   _places :: !(Map XY Place)
-    }
+newtype Area = Area { _places :: Map XY Place }
 makeLenses ''Area
-
-instance Monoid Area where
-    mempty = Area (const Bedrock) mempty
-    area1 `mappend` area2 = area2 & places %~ (area1 ^. places <>)
 
 type instance Index Area = XY
 type instance IxValue Area = Place
 
 instance (Contravariant f, Functor f) => Contains f Area where
-    contains = containsTest (\xy area → Map.member xy (area ^. places))
+    contains xy = places . contains xy
 
 instance At Area where
-    at xy f area =
-        indexed f xy is_member
-        <&>
-        maybe (maybe area insert is_member) insert
-      where
-        is_member = area ^. places ^. to (Map.lookup xy)
-        insert = (area &) . (places %~) . Map.insert xy
+    at xy = places . at xy
 
 instance Functor f ⇒ Ixed f Area where
-    ix xy f area =
-        indexed f xy
-            (fromMaybe
-                (area ^. parent $ xy)
-                (area ^. places ^. to (Map.lookup xy))
-            )
+    ix xy f a@(Area area) =
+        indexed f xy (fromMaybe Bedrock (Map.lookup xy area))
         <&>
-        (area &) . (places %~) . Map.insert xy
+        Area . flip (Map.insert xy) area
 
-
-type instance Index SelectedArea = XY
-type instance IxValue SelectedArea = Place
-
-data SelectedArea = SelectedArea
-    {   _selection :: Set XY
-    ,   _area :: Area
-    }
-makeLenses ''SelectedArea
-derive makeMonoid ''SelectedArea
-
-instance (Contravariant f, Functor f) => Contains f SelectedArea where
-    contains xy = area . contains xy
-
-instance At SelectedArea where
-    at xy f select
-      | Set.member xy (select ^. selection) =
-            at xy f (select ^. area)
-            <&>
-            (select &) . (area .~)
-      | otherwise =
-            indexed f xy Nothing
-            <&>
-            const select
-
-instance Functor f ⇒ Ixed f SelectedArea where
-    ix xy f select
-      | Set.member xy (select ^. selection) =
-            ix xy f (select ^. area)
-            <&>
-            (select &) . (area .~)
-      | otherwise =
-            indexed f xy (select ^. area ^. parent ^. to ($ xy))
-            <&>
-            const select
-class IsSelectedArea α where
-    selected_area :: Lens' α SelectedArea
-
-instance IsSelectedArea SelectedArea where
-    selected_area = id
-
-data RectangularArea = RectangularArea
-    {   _width :: !Int
-    ,   _height :: !Int
-    ,   _rectangular_selected_area :: !SelectedArea
-    }
-makeLenses ''RectangularArea
-
-instance IsSelectedArea RectangularArea where
-    selected_area = rectangular_selected_area
-
-type instance Index RectangularArea = XY
-type instance IxValue RectangularArea = Place
-
-instance (Contravariant f, Functor f) => Contains f RectangularArea where
-    contains xy = selected_area . contains xy
-
-instance At RectangularArea where
-    at xy = selected_area . at xy
-
-instance Functor f ⇒ Ixed f RectangularArea where
-    ix xy = selected_area . ix xy
