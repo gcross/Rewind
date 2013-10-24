@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -68,7 +69,7 @@ data Place =
     Bedrock
   | Floor
 
-newtype Area = Area { _places :: Map XY Place }
+newtype Area = Area { _places :: Map XY Place } deriving (At)
 makeLenses ''Area
 
 type instance Index Area = XY
@@ -76,9 +77,6 @@ type instance IxValue Area = Place
 
 instance (Contravariant f, Functor f) => Contains f Area where
     contains xy = places . contains xy
-
-instance At Area where
-    at xy = places . at xy
 
 instance Functor f ⇒ Ixed f Area where
     ix xy f a@(Area area) =
