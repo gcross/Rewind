@@ -92,3 +92,9 @@ instance Functor f ⇒ Ixed f Area where
         <&>
         Area . flip (Map.insert xy) area
 
+newtype Selection = Selection { _selection_places :: Set XY }
+makeLenses ''Selection
+
+instance Places Selection where
+    type PlacesType Selection = Set XY
+    places = selection_places
