@@ -35,8 +35,26 @@ import qualified Data.Set as Set
 data XY = XY
     { _x :: {-# UNPACK #-} !Int
     , _y :: {-# UNPACK #-} !Int
-    } deriving (Eq,Ord,Read,Show)
+    } deriving (Eq,Read,Show)
 makeLenses ''XY
+
+instance Ord XY where
+    (XY ax ay) `compare` (XY bx by) =
+        case ay `compare` by of
+            EQ → ax `compare` bx
+            c → c
+    (XY ax ay) <= (XY bx by)
+      | ay == by = ax <= bx
+      | otherwise = ay <= by
+    (XY ax ay) < (XY bx by)
+      | ay == by = ax < bx
+      | otherwise = ay < by
+    (XY ax ay) >= (XY bx by)
+      | ay == by = ax >= bx
+      | otherwise = ay >= by
+    (XY ax ay) > (XY bx by)
+      | ay == by = ax > bx
+      | otherwise = ay > by
 
 instance Monoid XY where
     mempty = XY 0 0
