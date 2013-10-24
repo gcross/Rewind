@@ -61,7 +61,7 @@ instance Monoid XY where
     (XY ax ay) `mappend` (XY bx by) = XY (ax + bx) (ay + by)
 
 data Place =
-    Rock
+    Bedrock
   | Floor
 
 data Area = Area
