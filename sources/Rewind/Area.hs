@@ -69,8 +69,16 @@ data Place =
     Bedrock
   | Floor
 
-newtype Area = Area { _places :: Map XY Place } deriving (At)
+class Places α where
+    type PlacesType α
+    places :: Lens' α (PlacesType α)
+
+newtype Area = Area { _area_places :: Map XY Place } deriving (At)
 makeLenses ''Area
+
+instance Places Area where
+    type PlacesType Area = Map XY Place
+    places = area_places
 
 type instance Index Area = XY
 type instance IxValue Area = Place
