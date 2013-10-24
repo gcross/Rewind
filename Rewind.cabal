@@ -7,6 +7,7 @@ Library
     Build-depends:
         base > 4 && < 5,
         containers >= 0.4 && < 0.6,
+        derive >= 2.5.11 && < 2.6,
         lens >= 3.8 && < 3.11
     Exposed-modules:
         Rewind.Area

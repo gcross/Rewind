@@ -24,6 +24,8 @@ import Control.Lens
     ,to
     )
 
+import Data.Derive.Monoid
+import Data.DeriveTH
 import Data.Functor (Functor(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -74,6 +76,10 @@ makeLenses ''Area
 translate :: XY → Area → Area
 translate xy = translation %~ (<> xy)
 
+instance Monoid Area where
+    mempty = Area mempty (const Bedrock) mempty
+    area1 `mappend` area2 = area2 & places %~ (area1 ^. places <>)
+
 type instance Index Area = XY
 type instance IxValue Area = Place
 
@@ -111,6 +117,7 @@ data SelectedArea = SelectedArea
     ,   _area :: Area
     }
 makeLenses ''SelectedArea
+derive makeMonoid ''SelectedArea
 
 instance (Contravariant f, Functor f) => Contains f SelectedArea where
     contains xy = area . contains xy
