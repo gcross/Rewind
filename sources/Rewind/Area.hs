@@ -17,6 +17,7 @@ import Control.Lens
     ,(<&>)
     ,(^.)
     ,(%~)
+    ,(.~)
     ,containsTest
     ,indexed
     ,makeLenses
@@ -28,6 +29,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Monoid(..),(<>))
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 data XY = XY
     { _x :: {-# UNPACK #-} !Int
@@ -80,3 +83,42 @@ instance Functor f ⇒ Ixed f Area where
         (area &) . (places %~) . Map.insert abs_xy
       where
         abs_xy = area ^. translation <> xy
+
+
+type instance Index SelectedArea = XY
+type instance IxValue SelectedArea = Place
+
+data SelectedArea = SelectedArea
+    {   _selection :: Set XY
+    ,   _area :: Area
+    }
+makeLenses ''SelectedArea
+
+instance (Contravariant f, Functor f) => Contains f SelectedArea where
+    contains xy = area . contains xy
+
+instance At SelectedArea where
+    at xy f select
+      | Set.member abs_xy (select ^. selection) =
+            at xy f (select ^. area)
+            <&>
+            (select &) . (area .~)
+      | otherwise =
+            indexed f xy Nothing
+            <&>
+            const select
+      where
+        abs_xy = select ^. area ^. translation <> xy
+
+instance Functor f ⇒ Ixed f SelectedArea where
+    ix xy f select
+      | Set.member abs_xy (select ^. selection) =
+            ix xy f (select ^. area)
+            <&>
+            (select &) . (area .~)
+      | otherwise =
+            indexed f xy (select ^. area ^. parent ^. to ($ abs_xy))
+            <&>
+            const select
+      where
+        abs_xy = select ^. area ^. translation <> xy
