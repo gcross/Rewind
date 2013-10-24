@@ -140,3 +140,22 @@ instance Functor f ⇒ Ixed f SelectedArea where
             const select
       where
         abs_xy = select ^. area ^. translation <> xy
+
+data RectangularArea = RectangularArea
+    {   _width :: !Int
+    ,   _height :: !Int
+    ,   _selected_area :: !SelectedArea
+    }
+makeLenses ''RectangularArea
+
+type instance Index RectangularArea = XY
+type instance IxValue RectangularArea = Place
+
+instance (Contravariant f, Functor f) => Contains f RectangularArea where
+    contains xy = selected_area . contains xy
+
+instance At RectangularArea where
+    at xy = selected_area . at xy
+
+instance Functor f ⇒ Ixed f RectangularArea where
+    ix xy = selected_area . ix xy
