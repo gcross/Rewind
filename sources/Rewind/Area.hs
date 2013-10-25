@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnicodeSyntax #-}
 
-module Rewind.Level where
+module Rewind.Area where
 
 import Control.Exception (Exception,throw)
 import Control.Lens
@@ -62,11 +62,11 @@ data Bounds = Bounds
     }
 makeLenses ''Bounds
 
-data Level = Level
+data Area = Area
     {   _bounds :: Bounds
     ,   _places :: !(IntMap Place)
     }
-makeLenses ''Level
+makeLenses ''Area
 
 xy2i :: Bounds → Iso' XY Int
 xy2i bounds = iso forward backward
@@ -79,10 +79,10 @@ xy2i bounds = iso forward backward
       | otherwise = x + y * bounds ^. width
     backward = uncurry XY . flip divMod (bounds ^. width)
 
-type instance Index Level = XY
-type instance IxValue Level = Place
+type instance Index Area = XY
+type instance IxValue Area = Place
 
-instance Functor f ⇒ Ixed f Level where
+instance Functor f ⇒ Ixed f Area where
     ix xy f level =
         indexed f xy
             (fromMaybe
