@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
@@ -12,12 +13,15 @@ import Control.Exception (Exception,throw)
 import Control.Lens
     (Contravariant(..)
     ,Index
+    ,IndexedTraversal'
     ,Iso'
     ,Ixed(..)
     ,IxValue
     ,(^.)
     ,(<&>)
     ,(%~)
+    ,(.~)
+    ,(&)
     ,indexed
     ,iso
     ,makeLenses
@@ -117,3 +121,9 @@ instance Functor f ⇒ Ixed f Area where
         <&>
         \place → (places %~ IntMap.insert i place) level
       where i = xy2i (level ^. bounds) xy
+
+area_traversal :: IndexedTraversal' XY Area Place
+area_traversal f area =
+    IntMap.traverseWithKey (indexed f . i2xy (area ^. bounds)) (area ^. places)
+    <&>
+    (area &) . (places .~)
