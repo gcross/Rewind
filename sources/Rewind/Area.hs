@@ -91,16 +91,18 @@ data Area = Area
     }
 makeLenses ''Area
 
-xy2i :: Bounds → Iso' XY Int
-xy2i bounds = iso forward backward
-  where
-    forward (XY x y)
-      | x < 0 = throw $ XCoordinateTooSmall x
-      | y < 0 = throw $ YCoordinateTooSmall y
-      | x >= bounds ^. width = throw $ XCoordinateTooLarge x (bounds ^. width)
-      | y >= bounds ^. height = throw $ YCoordinateTooLarge y (bounds ^. height)
-      | otherwise = x + y * bounds ^. width
-    backward = uncurry XY . flip divMod (bounds ^. width)
+xy2i :: Bounds → XY → Int
+xy2i bounds (XY x y)
+  | x < 0 = throw $ XCoordinateTooSmall x
+  | y < 0 = throw $ YCoordinateTooSmall y
+  | x >= bounds ^. width = throw $ XCoordinateTooLarge x (bounds ^. width)
+  | y >= bounds ^. height = throw $ YCoordinateTooLarge y (bounds ^. height)
+  | otherwise = x + y * bounds ^. width
+{-# INLINE xy2i #-}
+
+i2xy :: Bounds → Int → XY
+i2xy bounds = uncurry XY . flip divMod (bounds ^. width)
+{-# INLINE i2xy #-}
 
 type instance Index Area = XY
 type instance IxValue Area = Place
@@ -114,4 +116,4 @@ instance Functor f ⇒ Ixed f Area where
             )
         <&>
         \place → (places %~ IntMap.insert i place) level
-      where i = xy ^. xy2i (level ^. bounds)
+      where i = xy2i (level ^. bounds) xy
