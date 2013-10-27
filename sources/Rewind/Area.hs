@@ -91,6 +91,7 @@ makeLenses ''Bounds
 
 data Area = Area
     {   _bounds :: Bounds
+    ,   _parent :: Int → Place
     ,   _places :: !(IntMap Place)
     }
 makeLenses ''Area
@@ -115,7 +116,7 @@ instance Functor f ⇒ Ixed f Area where
     ix xy f level =
         indexed f xy
             (fromMaybe
-                (throw $ InvalidFlattenedCoordinate i)
+                (level ^. parent $ i)
                 (level ^. places ^. to (IntMap.lookup i))
             )
         <&>
