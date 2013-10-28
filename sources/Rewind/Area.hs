@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -17,15 +18,20 @@ import Control.Lens
     ,Iso'
     ,Ixed(..)
     ,IxValue
+    ,Getter
+    ,Lens
     ,(^.)
     ,(<&>)
     ,(%~)
     ,(.~)
     ,(&)
+    ,from
     ,indexed
     ,iso
+    ,lens
     ,makeLenses
     ,to
+    ,view
     )
 
 import Data.Functor (Functor(..))
@@ -35,6 +41,8 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Monoid(..))
 import Data.Typeable (Typeable)
 import Data.Word
+
+import TypeLevel.Number.Nat (Nat(..))
 
 data InvalidCoordinateException =
     XCoordinateTooSmall Int
@@ -83,36 +91,71 @@ data Place =
     Wall
   | Floor
 
-data Bounds = Bounds
-    {   _width :: {-# UNPACK #-} !Int
-    ,   _height ::{-# UNPACK #-} !Int
-    }
+data Number n where
+    Number :: Nat n ⇒ Number n
+
+instance ∀ n. Nat n ⇒ Nat (Number n) where
+    toInt Number = toInt (undefined :: n)
+
+data Bounds w h = Bounds 
 makeLenses ''Bounds
 
-data Area = Area
-    {   _bounds :: Bounds
-    ,   _parent :: Int → Place
+height :: ∀ w h1 h2. (Nat h1, Nat h2) ⇒ Lens (Bounds w h1) (Bounds w h2) (Number h1) (Number h2)
+height = lens (\_ → Number) (\_ _ → Bounds)
+
+width :: ∀ w1 w2 h. (Nat w1, Nat w2) ⇒  Lens (Bounds w1 h) (Bounds w2 h) (Number w1) (Number w2)
+width = lens (\_ → Number) (\_ _ → Bounds)
+
+asInt :: Nat n ⇒ Getter (Number n) Int
+asInt = to toInt
+
+data Area w h = Area
+    {   _parent :: Int → Place
     ,   _places :: !(IntMap Place)
     }
 makeLenses ''Area
 
-xy2i :: Bounds → XY → Int
-xy2i bounds (XY x y)
-  | x < 0 = throw $ XCoordinateTooSmall x
-  | y < 0 = throw $ YCoordinateTooSmall y
-  | x >= bounds ^. width = throw $ XCoordinateTooLarge x (bounds ^. width)
-  | y >= bounds ^. height = throw $ YCoordinateTooLarge y (bounds ^. height)
-  | otherwise = x + y * bounds ^. width
-{-# INLINE xy2i #-}
+changeAreaWH :: Area w1 h1 → Area w2 h2
+changeAreaWH (Area a b) = Area a b
 
-i2xy :: Bounds → Int → XY
-i2xy bounds = uncurry XY . flip divMod (bounds ^. width)
-{-# INLINE i2xy #-}
+area_iso :: Iso' (Area w1 h1) (Area w2 h2)
+area_iso = iso changeAreaWH changeAreaWH
 
-type instance Index Area = XY
-type instance IxValue Area = Place
+bounds :: ∀ w1 h1 w2 h2. (Nat w1, Nat h1, Nat w2, Nat h2) ⇒ Lens (Area w1 h1) (Area w2 h2) (Bounds w1 h1) (Bounds w2 h2)
+bounds = lens a2b b2a
+  where
+    a2b _ = Bounds
+    b2a area@(Area parent places) new_bounds =
+        Area (parent . (view . from $ old_i_new_i))
+             (IntMap.mapKeys (view old_i_new_i :: Int → Int) places)
+      where
+        old_bounds = area ^. bounds
+        old_xy_i = xy_i old_bounds
+        new_xy_i = xy_i new_bounds
+        old_i_new_i = from old_xy_i . new_xy_i
 
-instance Functor f ⇒ Ixed f Area where
+xy_i :: ∀ w h. (Nat w, Nat h) ⇒ Bounds w h → Iso' XY Int
+xy_i bounds = iso forward backward
+  where
+    forward (XY x y)
+      | x < 0 = throw $ XCoordinateTooSmall x
+      | y < 0 = throw $ YCoordinateTooSmall y
+      | x >= w = throw $ XCoordinateTooLarge x w
+      | y >= h = throw $ YCoordinateTooLarge y h
+      | otherwise = x + y*w
+    {-# INLINE forward #-}
+
+    backward = uncurry XY . flip divMod w
+    {-# INLINE backward #-}
+
+    w = bounds ^. width . asInt
+    h = bounds ^. height . asInt
+{-# INLINE xy_i #-}
+
+type instance Index (Area w h) = XY
+type instance IxValue (Area w h) = Place
+
+instance (Functor f, Nat w, Nat h) ⇒ Ixed f (Area w h) where
     ix xy f level =
         indexed f xy
             (fromMaybe
@@ -121,10 +164,12 @@ instance Functor f ⇒ Ixed f Area where
             )
         <&>
         \place → (places %~ IntMap.insert i place) level
-      where i = xy2i (level ^. bounds) xy
+      where i = xy ^. xy_i (level ^. bounds)
 
-area_traversal :: IndexedTraversal' XY Area Place
+area_traversal :: (Nat w, Nat h) ⇒ IndexedTraversal' XY (Area w h) Place
 area_traversal f area =
-    IntMap.traverseWithKey (indexed f . i2xy (area ^. bounds)) (area ^. places)
+    IntMap.traverseWithKey (indexed f . (view . from . xy_i $ area ^. bounds)) (area ^. places)
     <&>
     (area &) . (places .~)
+
+-- NOTE:  Create lenses, using the parent field to avoid copying.
