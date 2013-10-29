@@ -17,21 +17,25 @@ import Control.Lens
     ,Iso'
     ,Ixed(..)
     ,IxValue
+    ,Lens'
     ,(^.)
     ,(<&>)
     ,(%~)
     ,(.~)
     ,(&)
+    ,from
     ,indexed
     ,iso
+    ,lens
     ,makeLenses
     ,to
+    ,view
     )
 
 import Data.Functor (Functor(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe,mapMaybe)
 import Data.Monoid (Monoid(..))
 import Data.Typeable (Typeable)
 import Data.Word
@@ -90,11 +94,34 @@ data Bounds = Bounds
 makeLenses ''Bounds
 
 data Area = Area
-    {   _bounds :: Bounds
+    {   bounds_ :: Bounds
     ,   _parent :: Int → Place
     ,   _places :: !(IntMap Place)
     }
 makeLenses ''Area
+
+bounds :: Lens' Area Bounds
+bounds = lens bounds_ setBounds
+  where
+    setBounds (Area old_bounds old_parent old_places) new_bounds = Area new_bounds new_parent new_places
+      where
+        old_xy_i = xy_i old_bounds :: Iso' XY Int
+        new_xy_i = xy_i new_bounds :: Iso' XY Int
+        old_i_to_new_i = from old_xy_i . new_xy_i
+        new_parent = old_parent . view (from old_i_to_new_i)
+        new_places =
+            IntMap.fromAscList
+            .
+            mapMaybe (\(i,p) →
+                let xy@(XY x y) = i ^. from old_xy_i
+                in if x < old_bounds ^. width && y < old_bounds ^. height
+                    then Just (xy2i new_bounds xy,p) -- not sure why the iso doesn't work here
+                    else Nothing
+            )
+            .
+            IntMap.toAscList
+            $
+            old_places
 
 xy2i :: Bounds → XY → Int
 xy2i bounds (XY x y)
