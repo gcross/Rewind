@@ -13,6 +13,7 @@ module Rewind.Area where
 import Control.Exception (Exception,throw)
 import Control.Lens
     (At(..)
+    ,Contains(..)
     ,Contravariant(..)
     ,Index
     ,IndexedTraversal'
@@ -25,6 +26,7 @@ import Control.Lens
     ,(%~)
     ,(.~)
     ,(&)
+    ,containsTest
     ,from
     ,indexed
     ,iso
@@ -103,6 +105,19 @@ class HasBounds α where
 instance HasBounds Bounds where
     width = bounds_width
     height = bounds_height
+
+inBounds :: XY → Bounds → Bool
+inBounds (XY x y) bounds
+  | x < 0                 = False
+  | x >= bounds ^. width  = False
+  | y < 0                 = False
+  | y >= bounds ^. height = False
+  | otherwise = True
+
+type instance Index Bounds = XY
+
+instance (Contravariant f, Functor f) => Contains f Bounds where
+    contains = containsTest inBounds
 
 data Area = Area
     {   bounds_ :: Bounds
