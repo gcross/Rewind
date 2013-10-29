@@ -162,8 +162,8 @@ instance Functor f ⇒ Ixed f Area where
         \place → (places %~ IntMap.insert i place) level
       where i = xy2i (level ^. bounds) xy
 
-area_traversal :: IndexedTraversal' XY Area Place
-area_traversal f area =
+used_area_traversal :: IndexedTraversal' XY Area Place
+used_area_traversal f area =
     IntMap.traverseWithKey (indexed f . i2xy (area ^. bounds)) (area ^. places)
     <&>
     (area &) . (places .~)
