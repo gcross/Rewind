@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnicodeSyntax #-}
 
@@ -37,6 +38,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.Maybe (fromMaybe,mapMaybe)
 import Data.Monoid (Monoid(..))
+import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
 import Data.Word
 
@@ -170,3 +172,19 @@ used_area_traversal f area =
     IntMap.traverseWithKey (indexed f . i2xy (area ^. bounds)) (area ^. places)
     <&>
     (area &) . (places .~)
+
+full_area_traversal :: IndexedTraversal' XY Area Place
+full_area_traversal f area =
+    traverse g [0..(area ^. width)*(area ^. height)-1]
+    <&>
+    (area &) . (places .~) . IntMap.fromAscList
+  where
+    g i = fmap (i,)
+          .
+          apply (my_i2xy i)
+          $
+          fromMaybe
+              (area ^. parent $ i)
+              (area ^. places ^. to (IntMap.lookup i))
+    apply = indexed f
+    my_i2xy = i2xy (area ^. bounds)
