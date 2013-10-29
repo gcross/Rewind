@@ -88,10 +88,18 @@ data Place =
   | Floor
 
 data Bounds = Bounds
-    {   _width :: {-# UNPACK #-} !Int
-    ,   _height ::{-# UNPACK #-} !Int
+    {   _bounds_width :: {-# UNPACK #-} !Int
+    ,   _bounds_height ::{-# UNPACK #-} !Int
     }
 makeLenses ''Bounds
+
+class HasBounds α where
+    width :: Lens' α Int
+    height :: Lens' α Int
+
+instance HasBounds Bounds where
+    width = bounds_width
+    height = bounds_height
 
 data Area = Area
     {   bounds_ :: Bounds
@@ -99,6 +107,10 @@ data Area = Area
     ,   _places :: !(IntMap Place)
     }
 makeLenses ''Area
+
+instance HasBounds Area where
+    width = bounds . bounds_width
+    height = bounds . bounds_height
 
 bounds :: Lens' Area Bounds
 bounds = lens bounds_ setBounds
