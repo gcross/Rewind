@@ -182,6 +182,19 @@ instance At Area where
         is_member = area ^. places ^. to (IntMap.lookup i)
         insert = (area &) . (places %~) . IntMap.insert i
 
+instance Functor f ⇒ Contains f Area where
+    contains xy f area =
+        indexed f xy is_member
+        <&>
+        \flag → area &
+            case (is_member,flag) of
+                (False,True) → places %~ IntMap.insert i (area ^. parent $ i)
+                (True,False) → places %~ IntMap.delete i
+                _ → id
+      where
+        i = xy2i (area ^. bounds) xy
+        is_member = IntMap.member i (area ^. places)
+
 instance Functor f ⇒ Ixed f Area where
     ix xy f level =
         indexed f xy
