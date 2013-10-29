@@ -12,7 +12,8 @@ module Rewind.Area where
 
 import Control.Exception (Exception,throw)
 import Control.Lens
-    (Contravariant(..)
+    (At(..)
+    ,Contravariant(..)
     ,Index
     ,IndexedTraversal'
     ,Iso'
@@ -155,6 +156,16 @@ xy_i bounds = iso (xy2i bounds) (i2xy bounds)
 
 type instance Index Area = XY
 type instance IxValue Area = Place
+
+instance At Area where
+    at xy f area =
+        indexed f xy is_member
+        <&>
+        maybe (maybe area insert is_member) insert
+      where
+        i = xy2i (area ^. bounds) xy
+        is_member = area ^. places ^. to (IntMap.lookup i)
+        insert = (area &) . (places %~) . IntMap.insert i
 
 instance Functor f ⇒ Ixed f Area where
     ix xy f level =
