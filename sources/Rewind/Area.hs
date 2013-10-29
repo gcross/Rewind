@@ -1,3 +1,4 @@
+-- Extensions {{{
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -7,9 +8,11 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnicodeSyntax #-}
+-- }}}
 
 module Rewind.Area where
 
+-- Imports {{{
 import Control.Exception (Exception,throw)
 import Control.Lens
     (At(..)
@@ -44,8 +47,11 @@ import Data.Monoid (Monoid(..))
 import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
 import Data.Word
+-- }}}
 
-data InvalidCoordinateException =
+-- Exceptions {{{
+
+data InvalidCoordinateException = -- {{{
     XCoordinateTooSmall Int
   | YCoordinateTooSmall Int
   | XCoordinateTooLarge Int Int
@@ -59,14 +65,58 @@ instance Show InvalidCoordinateException where
     show (YCoordinateTooLarge y height) = "y coordinate (" ++ show y ++ ") is too large (>= " ++ show height ++ ")"
     show (InvalidFlattenedCoordinate i) = "flat coordinate (" ++ show i ++ ") is invalid"
 instance Exception InvalidCoordinateException
+-- }}}
 
-data XY = XY
+-- }}}
+
+-- Types {{{
+
+data XY = XY -- {{{
     { _x :: {-# UNPACK #-} !Int
     , _y :: {-# UNPACK #-} !Int
     } deriving (Eq,Read,Show)
 makeLenses ''XY
+-- }}}
 
-instance Ord XY where
+data Place = -- {{{
+    Wall
+  | Floor
+-- }}}
+
+data Bounds = Bounds -- {{{
+    {   _bounds_width :: {-# UNPACK #-} !Int
+    ,   _bounds_height ::{-# UNPACK #-} !Int
+    }
+makeLenses ''Bounds
+
+type instance Index Bounds = XY
+-- }}}
+
+data Area = Area -- {{{
+    {   bounds_ :: Bounds
+    ,   _parent :: Int → Place
+    ,   _places :: !(IntMap Place)
+    }
+makeLenses ''Area
+
+type instance Index Area = XY
+type instance IxValue Area = Place
+-- }}}
+
+-- }}}
+
+-- Classes {{{
+
+class HasBounds α where -- {{{
+    width :: Lens' α Int
+    height :: Lens' α Int
+-- }}}
+
+-- }}}
+
+-- Instances {{{
+
+instance Ord XY where -- {{{
     (XY ax ay) `compare` (XY bx by) =
         case ay `compare` by of
             EQ → ax `compare` bx
@@ -83,54 +133,97 @@ instance Ord XY where
     (XY ax ay) > (XY bx by)
       | ay == by = ax > bx
       | otherwise = ay > by
+-- }}}
 
-instance Monoid XY where
+instance Monoid XY where -- {{{
     mempty = XY 0 0
     (XY ax ay) `mappend` (XY bx by) = XY (ax + bx) (ay + by)
+-- }}}
 
-data Place =
-    Wall
-  | Floor
-
-data Bounds = Bounds
-    {   _bounds_width :: {-# UNPACK #-} !Int
-    ,   _bounds_height ::{-# UNPACK #-} !Int
-    }
-makeLenses ''Bounds
-
-class HasBounds α where
-    width :: Lens' α Int
-    height :: Lens' α Int
-
-instance HasBounds Bounds where
+instance HasBounds Bounds where -- {{{
     width = bounds_width
     height = bounds_height
+-- }}}
 
-inBounds :: XY → Bounds → Bool
+instance (Contravariant f, Functor f) => Contains f Bounds where -- {{{
+    contains = containsTest inBounds
+-- }}}
+
+instance HasBounds Area where -- {{{
+    width = bounds . bounds_width
+    height = bounds . bounds_height
+-- }}}
+
+instance At Area where -- {{{
+    at xy f area =
+        indexed f xy is_member
+        <&>
+        maybe (maybe area insert is_member) insert
+      where
+        i = xy2i (area ^. bounds) xy
+        is_member = area ^. places ^. to (IntMap.lookup i)
+        insert = (area &) . (places %~) . IntMap.insert i
+-- }}}
+
+instance Functor f ⇒ Contains f Area where -- {{{
+    contains xy f area =
+        indexed f xy is_member
+        <&>
+        \flag → area &
+            case (is_member,flag) of
+                (False,True) → places %~ IntMap.insert i (area ^. parent $ i)
+                (True,False) → places %~ IntMap.delete i
+                _ → id
+      where
+        i = xy2i (area ^. bounds) xy
+        is_member = IntMap.member i (area ^. places)
+-- }}}
+
+instance Functor f ⇒ Ixed f Area where -- {{{
+    ix xy f level =
+        indexed f xy
+            (fromMaybe
+                (level ^. parent $ i)
+                (level ^. places ^. to (IntMap.lookup i))
+            )
+        <&>
+        \place → (places %~ IntMap.insert i place) level
+      where i = xy2i (level ^. bounds) xy
+-- }}}
+
+-- }}}
+
+-- Functions {{{
+
+inBounds :: XY → Bounds → Bool -- {{{
 inBounds (XY x y) bounds
   | x < 0                 = False
   | x >= bounds ^. width  = False
   | y < 0                 = False
   | y >= bounds ^. height = False
   | otherwise = True
+-- }}}
 
-type instance Index Bounds = XY
+i2xy :: Bounds → Int → XY -- {{{
+i2xy bounds = uncurry XY . flip divMod (bounds ^. width)
+{-# INLINE i2xy #-}
+-- }}}
 
-instance (Contravariant f, Functor f) => Contains f Bounds where
-    contains = containsTest inBounds
+xy2i :: Bounds → XY → Int -- {{{
+xy2i bounds (XY x y)
+  | x < 0 = throw $ XCoordinateTooSmall x
+  | y < 0 = throw $ YCoordinateTooSmall y
+  | x >= bounds ^. width = throw $ XCoordinateTooLarge x (bounds ^. width)
+  | y >= bounds ^. height = throw $ YCoordinateTooLarge y (bounds ^. height)
+  | otherwise = x + y * bounds ^. width
+{-# INLINE xy2i #-}
+-- }}}
 
-data Area = Area
-    {   bounds_ :: Bounds
-    ,   _parent :: Int → Place
-    ,   _places :: !(IntMap Place)
-    }
-makeLenses ''Area
+-- }}}
 
-instance HasBounds Area where
-    width = bounds . bounds_width
-    height = bounds . bounds_height
+-- Lenses, etc. {{{
 
-bounds :: Lens' Area Bounds
+bounds :: Lens' Area Bounds -- {{{
 bounds = lens bounds_ setBounds
   where
     setBounds (Area old_bounds old_parent old_places) new_bounds = Area new_bounds new_parent new_places
@@ -152,67 +245,9 @@ bounds = lens bounds_ setBounds
             IntMap.toAscList
             $
             old_places
+-- }}}
 
-xy2i :: Bounds → XY → Int
-xy2i bounds (XY x y)
-  | x < 0 = throw $ XCoordinateTooSmall x
-  | y < 0 = throw $ YCoordinateTooSmall y
-  | x >= bounds ^. width = throw $ XCoordinateTooLarge x (bounds ^. width)
-  | y >= bounds ^. height = throw $ YCoordinateTooLarge y (bounds ^. height)
-  | otherwise = x + y * bounds ^. width
-{-# INLINE xy2i #-}
-
-i2xy :: Bounds → Int → XY
-i2xy bounds = uncurry XY . flip divMod (bounds ^. width)
-{-# INLINE i2xy #-}
-
-xy_i :: Bounds → Iso' XY Int
-xy_i bounds = iso (xy2i bounds) (i2xy bounds)
-
-type instance Index Area = XY
-type instance IxValue Area = Place
-
-instance At Area where
-    at xy f area =
-        indexed f xy is_member
-        <&>
-        maybe (maybe area insert is_member) insert
-      where
-        i = xy2i (area ^. bounds) xy
-        is_member = area ^. places ^. to (IntMap.lookup i)
-        insert = (area &) . (places %~) . IntMap.insert i
-
-instance Functor f ⇒ Contains f Area where
-    contains xy f area =
-        indexed f xy is_member
-        <&>
-        \flag → area &
-            case (is_member,flag) of
-                (False,True) → places %~ IntMap.insert i (area ^. parent $ i)
-                (True,False) → places %~ IntMap.delete i
-                _ → id
-      where
-        i = xy2i (area ^. bounds) xy
-        is_member = IntMap.member i (area ^. places)
-
-instance Functor f ⇒ Ixed f Area where
-    ix xy f level =
-        indexed f xy
-            (fromMaybe
-                (level ^. parent $ i)
-                (level ^. places ^. to (IntMap.lookup i))
-            )
-        <&>
-        \place → (places %~ IntMap.insert i place) level
-      where i = xy2i (level ^. bounds) xy
-
-used_area_traversal :: IndexedTraversal' XY Area Place
-used_area_traversal f area =
-    IntMap.traverseWithKey (indexed f . i2xy (area ^. bounds)) (area ^. places)
-    <&>
-    (area &) . (places .~)
-
-full_area_traversal :: IndexedTraversal' XY Area Place
+full_area_traversal :: IndexedTraversal' XY Area Place -- {{{
 full_area_traversal f area =
     traverse g [0..(area ^. width)*(area ^. height)-1]
     <&>
@@ -227,3 +262,17 @@ full_area_traversal f area =
               (area ^. places ^. to (IntMap.lookup i))
     apply = indexed f
     my_i2xy = i2xy (area ^. bounds)
+-- }}}
+
+used_area_traversal :: IndexedTraversal' XY Area Place -- {{{
+used_area_traversal f area =
+    IntMap.traverseWithKey (indexed f . i2xy (area ^. bounds)) (area ^. places)
+    <&>
+    (area &) . (places .~)
+-- }}}
+
+xy_i :: Bounds → Iso' XY Int -- {{{
+xy_i bounds = iso (xy2i bounds) (i2xy bounds)
+-- }}}
+
+-- }}}
