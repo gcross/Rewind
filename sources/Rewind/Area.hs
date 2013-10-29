@@ -148,6 +148,9 @@ i2xy :: Bounds → Int → XY
 i2xy bounds = uncurry XY . flip divMod (bounds ^. width)
 {-# INLINE i2xy #-}
 
+xy_i :: Bounds → Iso' XY Int
+xy_i bounds = iso (xy2i bounds) (i2xy bounds)
+
 type instance Index Area = XY
 type instance IxValue Area = Place
 
