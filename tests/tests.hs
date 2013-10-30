@@ -9,11 +9,11 @@
 -- Imports {{{
 import Control.Applicative ((<$>),(<*>))
 import Control.Monad (msum)
-import Control.Lens ((&),(.~),(^.),at,contains,to)
+import Control.Lens ((&),(.~),(^.),at,contains,ix,to)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe,mapMaybe)
 
 import Debug.Trace
 
@@ -177,6 +177,18 @@ main = defaultMain -- {{{
                         & contains xy .~ False
                         & contains xy .~ True
                        ) ^. places ^. to (IntMap.lookup i) == Just (area^.parent $ i)
+                 -- }}}
+                ]
+             -- }}}
+            ,testGroup "Ix" $ -- {{{
+                [Quick.testProperty "get" $ \(AreaAndXY area xy) → -- {{{
+                    let i = xy2i area xy
+                    in area ^. ix xy
+                       ==
+                       fromMaybe (area^.parent $ i) (IntMap.lookup i (area^.places))
+                 -- }}}
+                ,Quick.testProperty "set" $ \(AreaAndXY area xy) place → -- {{{
+                    (area & ix xy .~ place) ^. ix xy == place
                  -- }}}
                 ]
              -- }}}
