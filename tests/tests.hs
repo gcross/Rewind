@@ -142,7 +142,7 @@ main = defaultMain -- {{{
                 [Quick.testProperty "get" $ \(AreaAndXY area xy) → -- {{{
                     area ^. contains xy
                     ==
-                    IntMap.member (xy2i (area^.bounds) xy) (area^.places)
+                    IntMap.member (xy2i area xy) (area^.places)
                  -- }}}
                 ,Quick.testProperty "set (False)" $ \(AreaAndXY area xy) → -- {{{
                     (area & contains xy .~ False) ^. contains xy == False
@@ -151,7 +151,7 @@ main = defaultMain -- {{{
                     (area & contains xy .~ True) ^. contains xy == True
                  -- }}}
                 ,Quick.testProperty "set (parent)" $ \(AreaAndXY area xy) → -- {{{
-                    let i = xy2i (area^.bounds) xy
+                    let i = xy2i area xy
                     in (area
                         & contains xy .~ False
                         & contains xy .~ True

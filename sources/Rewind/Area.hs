@@ -171,7 +171,7 @@ instance At Area where -- {{{
         <&>
         maybe (maybe area insert is_member) insert
       where
-        i = xy2i (area ^. bounds) xy
+        i = xy2i area xy
         is_member = area ^. places ^. to (IntMap.lookup i)
         insert = (area &) . (places %~) . IntMap.insert i
 -- }}}
@@ -186,7 +186,7 @@ instance Functor f ⇒ Contains f Area where -- {{{
                 (True,False) → places %~ IntMap.delete i
                 _ → id
       where
-        i = xy2i (area ^. bounds) xy
+        i = xy2i area xy
         is_member = IntMap.member i (area ^. places)
 -- }}}
 
@@ -217,7 +217,7 @@ inBounds (XY x y) bounds
   | otherwise = True
 -- }}}
 
-i2xy :: Bounds → Int → XY -- {{{
+i2xy :: HasBounds α ⇒ α → Int → XY -- {{{
 i2xy bounds = uncurry (flip XY) . flip divMod (bounds ^. width)
 {-# INLINE i2xy #-}
 -- }}}
@@ -226,7 +226,7 @@ numberOfPlaces :: HasBounds α ⇒ α → Int -- {{{
 numberOfPlaces = liftA2 (*) (^.width) (^.height)
 -- }}}
 
-xy2i :: Bounds → XY → Int -- {{{
+xy2i :: HasBounds α ⇒ α → XY → Int -- {{{
 xy2i bounds (XY x y)
   | x < 0 = throw $ XCoordinateTooSmall x
   | y < 0 = throw $ YCoordinateTooSmall y
@@ -278,17 +278,17 @@ full_area_traversal f area =
               (area ^. parent $ i)
               (area ^. places ^. to (IntMap.lookup i))
     apply = indexed f
-    my_i2xy = i2xy (area ^. bounds)
+    my_i2xy = i2xy area
 -- }}}
 
 used_area_traversal :: IndexedTraversal' XY Area Place -- {{{
 used_area_traversal f area =
-    IntMap.traverseWithKey (indexed f . i2xy (area ^. bounds)) (area ^. places)
+    IntMap.traverseWithKey (indexed f . i2xy area) (area ^. places)
     <&>
     (area &) . (places .~)
 -- }}}
 
-xy_i :: Bounds → Iso' XY Int -- {{{
+xy_i :: HasBounds α ⇒ α → Iso' XY Int -- {{{
 xy_i bounds = iso (xy2i bounds) (i2xy bounds)
 -- }}}
 
