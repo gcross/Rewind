@@ -1,5 +1,6 @@
 -- Extensions {{{
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -47,6 +48,8 @@ import Data.Monoid (Monoid(..))
 import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
 import Data.Word
+
+import GHC.Generics (Generic)
 -- }}}
 
 -- Exceptions {{{
@@ -74,19 +77,20 @@ instance Exception InvalidCoordinateException
 data XY = XY -- {{{
     { _x :: {-# UNPACK #-} !Int
     , _y :: {-# UNPACK #-} !Int
-    } deriving (Eq,Read,Show)
+    } deriving (Eq,Generic,Read,Show)
 makeLenses ''XY
 -- }}}
 
 data Place = -- {{{
     Wall
   | Floor
+  deriving (Enum,Eq,Generic,Ord,Read,Show)
 -- }}}
 
 data Bounds = Bounds -- {{{
     {   _bounds_width :: {-# UNPACK #-} !Int
     ,   _bounds_height ::{-# UNPACK #-} !Int
-    }
+    } deriving (Eq,Generic,Ord,Read,Show)
 makeLenses ''Bounds
 
 type instance Index Bounds = XY
@@ -96,7 +100,7 @@ data Area = Area -- {{{
     {   bounds_ :: Bounds
     ,   _parent :: Int → Place
     ,   _places :: !(IntMap Place)
-    }
+    } deriving Generic
 makeLenses ''Area
 
 type instance Index Area = XY
