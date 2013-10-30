@@ -15,6 +15,8 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.Maybe (mapMaybe)
 
+import Debug.Trace
+
 import Test.Framework (defaultMain,testGroup)
 import qualified Test.Framework.Providers.QuickCheck2 as Quick
 import qualified Test.Framework.Providers.SmallCheck as Small
@@ -112,6 +114,10 @@ instance Show AreaAndXY where -- {{{
 -- }}}
 
 -- Functions {{{
+
+echo :: Show α ⇒ α → α -- {{{
+echo x = trace (show x) x
+-- }}}
 
 xyForBounds :: Bounds → Series m XY -- {{{
 xyForBounds (Bounds width height) =
