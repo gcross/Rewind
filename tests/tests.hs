@@ -21,6 +21,8 @@ import Rewind.Area
 
 -- Types {{{
 
+data BoundsAndIndex = BoundsAndIndex Bounds Int deriving (Eq,Ord,Read,Show)
+
 data BoundsAndXY = BoundsAndXY Bounds XY deriving (Eq,Ord,Read,Show)
 
 data BoundsAndXY2 = BoundsAndXY2 Bounds XY XY deriving (Eq,Ord,Read,Show)
@@ -31,6 +33,12 @@ data BoundsAndXY2 = BoundsAndXY2 Bounds XY XY deriving (Eq,Ord,Read,Show)
 
 instance Monad m ⇒ Serial m Bounds where -- {{{
     series = Bounds <$> (getPositive <$> series) <*> (getPositive <$> series)
+-- }}}
+
+instance Monad m ⇒ Serial m BoundsAndIndex where -- {{{
+    series = do
+        bounds@(Bounds width height) ← series
+        BoundsAndIndex <$> return bounds <*> (msum . map return $ [0..width*height-1])
 -- }}}
 
 instance Monad m ⇒ Serial m BoundsAndXY where -- {{{
@@ -61,6 +69,15 @@ main = defaultMain -- {{{
         [testGroup "xy ↔ i" $ -- {{{
             [testProperty "order preserving" $ \(BoundsAndXY2 bounds xy1 xy2) → -- {{{
                 xy1 `compare` xy2 == xy2i bounds xy1 `compare` xy2i bounds xy2
+             -- }}}
+            ,testGroup "xy_i is an isomorphism" -- {{{
+                [testProperty "forward direction" $ \(BoundsAndXY bounds xy) → -- {{{
+                    (i2xy bounds . xy2i bounds) xy == xy
+                 -- }}}
+                ,testProperty "backward direction" $ \(BoundsAndIndex bounds i) → -- {{{
+                    (xy2i bounds . i2xy bounds) i == i
+                 -- }}}
+                ]
              -- }}}
             ]
          -- }}}

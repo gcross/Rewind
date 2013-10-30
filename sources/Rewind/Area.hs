@@ -209,7 +209,7 @@ inBounds (XY x y) bounds
 -- }}}
 
 i2xy :: Bounds → Int → XY -- {{{
-i2xy bounds = uncurry XY . flip divMod (bounds ^. width)
+i2xy bounds = uncurry (flip XY) . flip divMod (bounds ^. width)
 {-# INLINE i2xy #-}
 -- }}}
 
