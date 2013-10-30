@@ -9,7 +9,7 @@
 -- Imports {{{
 import Control.Applicative ((<$>),(<*>))
 import Control.Monad (msum)
-import Control.Lens ((^.),contains)
+import Control.Lens ((&),(.~),(^.),contains)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -143,6 +143,12 @@ main = defaultMain -- {{{
                     area ^. contains xy
                     ==
                     IntMap.member (xy2i (area^.bounds) xy) (area^.places)
+                 -- }}}
+                ,Quick.testProperty "set (False)" $ \(AreaAndXY area xy) → -- {{{
+                    (area & contains xy .~ False) ^. contains xy == False
+                 -- }}}
+                ,Quick.testProperty "set (True)" $ \(AreaAndXY area xy) → -- {{{
+                    (area & contains xy .~ True) ^. contains xy == True
                  -- }}}
                 ]
              -- }}}
