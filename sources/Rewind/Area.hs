@@ -195,15 +195,15 @@ instance Functor f ⇒ Contains f Area where -- {{{
 -- }}}
 
 instance Functor f ⇒ Ixed f Area where -- {{{
-    ix xy f level =
+    ix xy f area =
         indexed f xy
             (fromMaybe
-                (level ^. parent $ i)
-                (level ^. places ^. to (IntMap.lookup i))
+                (area ^. parent $ i)
+                (area ^. places ^. to (IntMap.lookup i))
             )
         <&>
-        \place → (places %~ IntMap.insert i place) level
-      where i = xy2i (level ^. bounds) xy
+        \place → (places %~ IntMap.insert i place) area
+      where i = xy2i (area ^. bounds) xy
 -- }}}
 
 -- }}}
