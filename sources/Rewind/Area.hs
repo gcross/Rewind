@@ -84,7 +84,7 @@ makeLenses ''XY
 data Place = -- {{{
     Wall
   | Floor
-  deriving (Enum,Eq,Generic,Ord,Read,Show)
+  deriving (Bounded,Enum,Eq,Generic,Ord,Read,Show)
 -- }}}
 
 data Bounds = Bounds -- {{{
