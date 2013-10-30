@@ -169,11 +169,15 @@ instance At Area where -- {{{
     at xy f area =
         indexed f xy is_member
         <&>
-        maybe (maybe area insert is_member) insert
+        maybe
+            (case is_member of
+                Nothing → area
+                Just _ → area & places %~ IntMap.delete i
+            )
+            ((area &) . (places %~) . IntMap.insert i)
       where
         i = xy2i area xy
         is_member = area ^. places ^. to (IntMap.lookup i)
-        insert = (area &) . (places %~) . IntMap.insert i
 -- }}}
 
 instance Functor f ⇒ Contains f Area where -- {{{

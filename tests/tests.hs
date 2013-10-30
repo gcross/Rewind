@@ -9,7 +9,7 @@
 -- Imports {{{
 import Control.Applicative ((<$>),(<*>))
 import Control.Monad (msum)
-import Control.Lens ((&),(.~),(^.),contains,to)
+import Control.Lens ((&),(.~),(^.),at,contains,to)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -138,7 +138,22 @@ main = defaultMain -- {{{
             ]
          -- }}}
         ,testGroup "Area instances" $ -- {{{
-            [testGroup "Contains" $ -- {{{
+            [testGroup "At" $ -- {{{
+                [Quick.testProperty "get" $ \(AreaAndXY area xy) → -- {{{
+                    let i = xy2i area xy
+                    in area ^. at xy
+                       ==
+                       IntMap.lookup i (area^.places)
+                 -- }}}
+                ,Quick.testProperty "set (Nothing)" $ \(AreaAndXY area xy) → -- {{{
+                    (area & at xy .~ Nothing) ^. at xy == Nothing
+                 -- }}}
+                ,Quick.testProperty "set (Just x)" $ \(AreaAndXY area xy) place → -- {{{
+                    (area & at xy .~ Just place) ^. at xy == Just place
+                 -- }}}
+                ]
+             -- }}}
+            ,testGroup "Contains" $ -- {{{
                 [Quick.testProperty "get" $ \(AreaAndXY area xy) → -- {{{
                     area ^. contains xy
                     ==
