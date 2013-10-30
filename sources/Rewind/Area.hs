@@ -144,6 +144,8 @@ instance Monoid XY where -- {{{
     (XY ax ay) `mappend` (XY bx by) = XY (ax + bx) (ay + by)
 -- }}}
 
+-- Bounds {{{
+
 instance HasBounds Bounds where -- {{{
     width = bounds_width
     height = bounds_height
@@ -152,6 +154,10 @@ instance HasBounds Bounds where -- {{{
 instance (Contravariant f, Functor f) => Contains f Bounds where -- {{{
     contains = containsTest inBounds
 -- }}}
+
+-- }}}
+
+-- Area {{{
 
 instance HasBounds Area where -- {{{
     width = bounds . bounds_width
@@ -193,6 +199,8 @@ instance Functor f ⇒ Ixed f Area where -- {{{
         <&>
         \place → (places %~ IntMap.insert i place) level
       where i = xy2i (level ^. bounds) xy
+-- }}}
+
 -- }}}
 
 -- }}}
