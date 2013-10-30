@@ -14,6 +14,7 @@
 module Rewind.Area where
 
 -- Imports {{{
+import Control.Applicative (liftA2)
 import Control.Exception (Exception,throw)
 import Control.Lens
     (At(..)
@@ -219,6 +220,10 @@ inBounds (XY x y) bounds
 i2xy :: Bounds → Int → XY -- {{{
 i2xy bounds = uncurry (flip XY) . flip divMod (bounds ^. width)
 {-# INLINE i2xy #-}
+-- }}}
+
+numberOfPlaces :: HasBounds α ⇒ α → Int -- {{{
+numberOfPlaces = liftA2 (*) (^.width) (^.height)
 -- }}}
 
 xy2i :: Bounds → XY → Int -- {{{
