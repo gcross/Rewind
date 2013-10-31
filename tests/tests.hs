@@ -9,7 +9,18 @@
 -- Imports {{{
 import Control.Applicative ((<$>),(<*>))
 import Control.Monad (msum)
-import Control.Lens ((&),(.~),(^.),(^@..),at,contains,iact,imapMOf_,ix,to)
+import Control.Lens
+    ((&)
+    ,(.~)
+    ,(^.)
+    ,(^@..)
+    ,at
+    ,contains
+    ,iact
+    ,imapMOf_
+    ,ix
+    ,to
+    )
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
