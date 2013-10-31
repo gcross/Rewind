@@ -270,7 +270,7 @@ bounds = lens bounds_ setBounds
 
 full_area_traversal :: IndexedTraversal' XY Area Place -- {{{
 full_area_traversal f area =
-    traverse g [0..(area ^. width)*(area ^. height)-1]
+    traverse g [0..numberOfPlaces area - 1]
     <&>
     (area &) . (places .~) . IntMap.fromAscList
   where
