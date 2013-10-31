@@ -206,6 +206,10 @@ instance Functor f ⇒ Ixed f Area where -- {{{
       where i = xy2i (area ^. bounds) xy
 -- }}}
 
+instance Show Area where -- {{{
+    show area = "Area " ++ show (area^.bounds) ++ " _ " ++ show (area^.places)
+-- }}}
+
 -- }}}
 
 -- }}}
