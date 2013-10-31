@@ -20,12 +20,12 @@ import Control.Lens
     (At(..)
     ,Contains(..)
     ,Contravariant(..)
+    ,Getter
     ,Index
     ,IndexedTraversal'
     ,Iso'
     ,Ixed(..)
     ,IxValue
-    ,Lens'
     ,(^.)
     ,(<&>)
     ,(%~)
@@ -89,8 +89,8 @@ data Place = -- {{{
 -- }}}
 
 data Bounds = Bounds -- {{{
-    {   _bounds_width :: {-# UNPACK #-} !Int
-    ,   _bounds_height ::{-# UNPACK #-} !Int
+    {   width_ :: {-# UNPACK #-} !Int
+    ,   height_ ::{-# UNPACK #-} !Int
     } deriving (Eq,Generic,Ord,Read,Show)
 makeLenses ''Bounds
 
@@ -113,8 +113,8 @@ type instance IxValue Area = Place
 -- Classes {{{
 
 class HasBounds α where -- {{{
-    width :: Lens' α Int
-    height :: Lens' α Int
+    width :: Getter α Int
+    height :: Getter α Int
 -- }}}
 
 -- }}}
@@ -148,8 +148,8 @@ instance Monoid XY where -- {{{
 -- Bounds {{{
 
 instance HasBounds Bounds where -- {{{
-    width = bounds_width
-    height = bounds_height
+    width = to width_
+    height = to height_
 -- }}}
 
 instance (Contravariant f, Functor f) => Contains f Bounds where -- {{{
@@ -161,8 +161,8 @@ instance (Contravariant f, Functor f) => Contains f Bounds where -- {{{
 -- Area {{{
 
 instance HasBounds Area where -- {{{
-    width = bounds . bounds_width
-    height = bounds . bounds_height
+    width = bounds . width
+    height = bounds . height
 -- }}}
 
 instance At Area where -- {{{
@@ -248,28 +248,8 @@ xy2i bounds (XY x y)
 
 -- Lenses, etc. {{{
 
-bounds :: Lens' Area Bounds -- {{{
-bounds = lens bounds_ setBounds
-  where
-    setBounds (Area old_bounds old_parent old_places) new_bounds = Area new_bounds new_parent new_places
-      where
-        old_xy_i = xy_i old_bounds :: Iso' XY Int
-        new_xy_i = xy_i new_bounds :: Iso' XY Int
-        old_i_to_new_i = from old_xy_i . new_xy_i
-        new_parent = old_parent . view (from old_i_to_new_i)
-        new_places =
-            IntMap.fromAscList
-            .
-            mapMaybe (\(i,p) →
-                let xy@(XY x y) = i ^. from old_xy_i
-                in if x < old_bounds ^. width && y < old_bounds ^. height
-                    then Just (xy2i new_bounds xy,p) -- not sure why the iso doesn't work here
-                    else Nothing
-            )
-            .
-            IntMap.toAscList
-            $
-            old_places
+bounds :: Getter Area Bounds -- {{{
+bounds = to bounds_
 -- }}}
 
 full_area_traversal :: IndexedTraversal' XY Area Place -- {{{
