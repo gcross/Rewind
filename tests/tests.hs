@@ -196,7 +196,7 @@ main = defaultMain -- {{{
              -- }}}
             ]
          -- }}}
-        ,testGroup "Area traversals"
+        ,testGroup "Area traversals" -- {{{
             [testGroup "full" -- {{{
                 [Quick.testProperty "correct indices" $ \(AreaAndXY area xy) → -- {{{
                     map fst (area ^@.. full_area_traversal) == map (i2xy area) [0..numberOfPlaces area-1]
@@ -220,6 +220,7 @@ main = defaultMain -- {{{
                 ]
              -- }}}
             ]
+         -- }}}
         ]
      -- }}}
     ]
