@@ -9,7 +9,7 @@
 -- Imports {{{
 import Control.Applicative ((<$>),(<*>))
 import Control.Monad (msum)
-import Control.Lens ((&),(.~),(^.),at,contains,ix,to)
+import Control.Lens ((&),(.~),(^.),(^@..),at,contains,iact,imapMOf_,ix,to)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -20,8 +20,10 @@ import Debug.Trace
 import Test.Framework (defaultMain,testGroup)
 import qualified Test.Framework.Providers.QuickCheck2 as Quick
 import qualified Test.Framework.Providers.SmallCheck as Small
+import Test.HUnit ((@?=))
 import Test.QuickCheck.Arbitrary (Arbitrary(..),arbitraryBoundedEnum)
 import Test.QuickCheck.Gen (choose,vectorOf)
+import Test.QuickCheck.Property (morallyDubiousIOProperty)
 import Test.SmallCheck (Property(..))
 import Test.SmallCheck.Series (Serial(..),Series,getPositive)
 
@@ -194,6 +196,19 @@ main = defaultMain -- {{{
              -- }}}
             ]
          -- }}}
+        ,testGroup "Area traversals"
+            [testGroup "full" -- {{{
+                [Quick.testProperty "correct indices" $ \(AreaAndXY area xy) → -- {{{
+                    map fst (area ^@.. full_area_traversal) == map (i2xy area) [0..numberOfPlaces area-1]
+                 -- }}}
+                ,Quick.testProperty "correct values" $ \area → morallyDubiousIOProperty $ -- {{{
+                    (flip (imapMOf_ full_area_traversal) area $ \xy p → let i = xy2i area xy in
+                        p @?= fromMaybe (area^.parent $ i) (IntMap.lookup i (area^.places))
+                    ) >> return True
+                 -- }}}
+                ]
+             -- }}}
+            ]
         ]
      -- }}}
     ]
