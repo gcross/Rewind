@@ -208,6 +208,17 @@ main = defaultMain -- {{{
                  -- }}}
                 ]
              -- }}}
+            ,testGroup "used" -- {{{
+                [Quick.testProperty "correct indices" $ \(AreaAndXY area xy) → -- {{{
+                    map fst (area ^@.. used_area_traversal) == (map (i2xy area) . IntMap.keys $ area^.places)
+                 -- }}}
+                ,Quick.testProperty "correct values" $ \area → morallyDubiousIOProperty $ -- {{{
+                    (flip (imapMOf_ used_area_traversal) area $ \xy p → let i = xy2i area xy in
+                        p @?= fromMaybe (area^.parent $ i) (IntMap.lookup i (area^.places))
+                    ) >> return True
+                 -- }}}
+                ]
+             -- }}}
             ]
         ]
      -- }}}
