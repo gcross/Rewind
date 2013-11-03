@@ -38,6 +38,7 @@ import Control.Lens
     ,lens
     ,makeLenses
     ,to
+    ,toListOf
     ,view
     )
 
@@ -177,6 +178,10 @@ instance At Area where -- {{{
       where
         i = xy2i area xy
         is_member = area ^. places ^. to (IntMap.lookup i)
+-- }}}
+
+instance Eq Area where -- {{{
+    a == b = toListOf full_area_traversal a == toListOf full_area_traversal b
 -- }}}
 
 instance Functor f ⇒ Contains f Area where -- {{{
