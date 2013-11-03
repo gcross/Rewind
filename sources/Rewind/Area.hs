@@ -16,7 +16,7 @@ module Rewind.Area where
 -- Imports {{{
 import Control.Applicative (liftA2)
 import Control.Exception (Exception,throw)
-import Control.Lens
+import Control.Lens -- {{{
     (At(..)
     ,Contains(..)
     ,Contravariant(..)
@@ -42,6 +42,7 @@ import Control.Lens
     ,toListOf
     ,view
     )
+-- }}}
 
 import Data.Functor (Functor(..))
 import Data.IntMap (IntMap)
