@@ -1,6 +1,6 @@
 Name:                Rewind
 Version:             1.0.0
-Cabal-version:       >=1.8
+Cabal-version:       >= 1.8
 Build-type:          Simple
 
 Library
@@ -11,3 +11,4 @@ Library
     Exposed-modules:
         Rewind.Area
     HS-source-dirs: sources
+

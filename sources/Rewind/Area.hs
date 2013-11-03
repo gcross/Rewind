@@ -1,63 +1,84 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+-- Extensions {{{
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnicodeSyntax #-}
+-- }}}
 
 module Rewind.Area where
 
-import Control.Exception (Exception,throw)
-import Control.Lens
-    (Contravariant(..)
+-- Imports {{{
+
+import Control.Applicative ((<$>),(<*>),liftA2)
+import Control.Lens -- {{{
+    (Contains(..)
+    ,Contravariant
     ,Index
     ,IndexedTraversal'
-    ,Iso'
-    ,Ixed(..)
-    ,IxValue
     ,(^.)
     ,(<&>)
-    ,(%~)
-    ,(.~)
-    ,(&)
+    ,containsTest
     ,indexed
-    ,iso
     ,makeLenses
-    ,to
     )
+-- }}}
 
-import Data.Functor (Functor(..))
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-import Data.Maybe (fromMaybe)
+import Data.List (foldl')
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Monoid (Monoid(..))
-import Data.Typeable (Typeable)
-import Data.Word
+import Data.Traversable (traverse)
 
-data InvalidCoordinateException =
-    XCoordinateTooSmall Int
-  | YCoordinateTooSmall Int
-  | XCoordinateTooLarge Int Int
-  | YCoordinateTooLarge Int Int
-  | InvalidFlattenedCoordinate Int
-  deriving (Typeable)
-instance Show InvalidCoordinateException where
-    show (XCoordinateTooSmall x) = "x coordinate (" ++ show x ++ ") is too small"
-    show (YCoordinateTooSmall y) = "y coordinate (" ++ show y ++ ") is too small"
-    show (XCoordinateTooLarge x width) = "x coordinate (" ++ show x ++ ") is too large (>= " ++ show width ++ ")"
-    show (YCoordinateTooLarge y height) = "y coordinate (" ++ show y ++ ") is too large (>= " ++ show height ++ ")"
-    show (InvalidFlattenedCoordinate i) = "flat coordinate (" ++ show i ++ ") is invalid"
-instance Exception InvalidCoordinateException
+-- }}}
 
-data XY = XY
+-- Types {{{
+
+data XY = XY -- {{{
     { _x :: {-# UNPACK #-} !Int
     , _y :: {-# UNPACK #-} !Int
     } deriving (Eq,Read,Show)
 makeLenses ''XY
+-- }}}
 
-instance Ord XY where
+data Wall = -- {{{
+  H | V | NE | NW | SE | SW
+  deriving (Bounded,Enum,Eq,Ord,Read,Show)
+-- }}}
+
+data Place = -- {{{
+    Wall Wall
+  | Floor
+  | Rock
+  deriving (Eq,Ord,Read,Show)
+-- }}}
+
+type Area = Map XY Place
+
+data Bounds = Bounds -- {{{
+    {   _width :: {-# UNPACK #-} !Int
+    ,   _height ::{-# UNPACK #-} !Int
+    } deriving (Eq,Ord,Read,Show)
+makeLenses ''Bounds
+
+type instance Index Bounds = XY
+-- }}}
+
+-- }}}
+
+-- Instances {{{
+
+-- XY {{{
+
+instance Monoid XY where -- {{{
+    mempty = XY 0 0
+    (XY ax ay) `mappend` (XY bx by) = XY (ax + bx) (ay + by)
+-- }}}
+
+instance Ord XY where -- {{{
     (XY ax ay) `compare` (XY bx by) =
         case ay `compare` by of
             EQ → ax `compare` bx
@@ -74,56 +95,63 @@ instance Ord XY where
     (XY ax ay) > (XY bx by)
       | ay == by = ax > bx
       | otherwise = ay > by
+-- }}}
 
-instance Monoid XY where
-    mempty = XY 0 0
-    (XY ax ay) `mappend` (XY bx by) = XY (ax + bx) (ay + by)
+-- }}}
 
-data Place =
-    Wall
-  | Floor
+-- }}}
 
-data Bounds = Bounds
-    {   _width :: {-# UNPACK #-} !Int
-    ,   _height ::{-# UNPACK #-} !Int
-    }
-makeLenses ''Bounds
+-- Functions {{{
 
-data Area = Area
-    {   _bounds :: Bounds
-    ,   _places :: !(IntMap Place)
-    }
-makeLenses ''Area
+boxOfXYs :: XY → Bounds → [XY] -- {{{
+boxOfXYs (XY first_x first_y) (Bounds width height) =
+    flip XY <$> [first_y..last_y] <*> [first_x..last_x]
+  where
+    last_x = first_x + width - 1
+    last_y = first_y + height - 1
+-- }}}
 
-xy2i :: Bounds → XY → Int
-xy2i bounds (XY x y)
-  | x < 0 = throw $ XCoordinateTooSmall x
-  | y < 0 = throw $ YCoordinateTooSmall y
-  | x >= bounds ^. width = throw $ XCoordinateTooLarge x (bounds ^. width)
-  | y >= bounds ^. height = throw $ YCoordinateTooLarge y (bounds ^. height)
-  | otherwise = x + y * bounds ^. width
-{-# INLINE xy2i #-}
+numberOfPlaces :: Bounds → Int -- {{{
+numberOfPlaces = liftA2 (*) (^.width) (^.height)
+-- }}}
 
-i2xy :: Bounds → Int → XY
-i2xy bounds = uncurry XY . flip divMod (bounds ^. width)
-{-# INLINE i2xy #-}
+room :: XY → Bounds → Area -- {{{
+room (XY first_x first_y) (Bounds width height)
+  | width < 2 || height < 2 = error $ "bounds for a room be at least two in both directions, not " ++ show width ++ " by " ++ show height
+  | otherwise =
+        Map.fromList
+        $
+        [
+             (XY first_x first_y,Wall NW)
+            ,(XY last_x first_y,Wall NE)
+            ,(XY last_x last_y,Wall SW)
+            ,(XY first_x last_y,Wall SE)
+        ]
+        ++
+        ([first_x+1..last_x-1] >>= \x → [(XY x first_y,Wall H),(XY x last_y,Wall H)])
+        ++
+        ([first_y+1..last_y-1] >>= \y → [(XY first_x y,Wall V),(XY last_x y,Wall V)])
+  where
+    last_x = first_x + width
+    last_y = first_y + height
+    interior_width = width - 2
+    interior_height = height - 2
+-- }}}
 
-type instance Index Area = XY
-type instance IxValue Area = Place
+translate :: XY → Area → Area -- {{{
+translate = Map.mapKeysMonotonic . mappend
+-- }}}
 
-instance Functor f ⇒ Ixed f Area where
-    ix xy f level =
-        indexed f xy
-            (fromMaybe
-                (throw $ InvalidFlattenedCoordinate i)
-                (level ^. places ^. to (IntMap.lookup i))
-            )
-        <&>
-        \place → (places %~ IntMap.insert i place) level
-      where i = xy2i (level ^. bounds) xy
-
-area_traversal :: IndexedTraversal' XY Area Place
-area_traversal f area =
-    IntMap.traverseWithKey (indexed f . i2xy (area ^. bounds)) (area ^. places)
+traverseArea :: XY → Bounds → IndexedTraversal' XY Area (Maybe Place) -- {{{
+traverseArea offset bounds f area =
+    traverse g (boxOfXYs offset bounds)
     <&>
-    (area &) . (places .~)
+    foldl' (flip ($)) area
+  where
+    g xy =
+        (indexed f xy $ Map.lookup xy area)
+        <&>
+        maybe (Map.delete xy) (Map.insert xy)
+-- }}}
+
+-- }}}
