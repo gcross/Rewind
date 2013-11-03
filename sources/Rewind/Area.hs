@@ -26,6 +26,7 @@ import Control.Lens
     ,Iso'
     ,Ixed(..)
     ,IxValue
+    ,Lens'
     ,(^.)
     ,(<&>)
     ,(%~)
@@ -46,7 +47,7 @@ import Data.Functor (Functor(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.Maybe (fromMaybe,mapMaybe)
-import Data.Monoid (Monoid(..))
+import Data.Monoid (Monoid(..),(<>))
 import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
 import Data.Word
@@ -276,6 +277,48 @@ full_area_traversal f area =
               (area ^. places ^. to (IntMap.lookup i))
     apply = indexed f
     my_i2xy = i2xy area
+-- }}}
+
+select :: XY → Bounds → Lens' Area Area -- {{{
+select offset selected_bounds =
+    lens (\area →
+        Area selected_bounds
+             (
+                (area^.)
+                 .
+                 ix
+                 .
+                 (<> offset)
+                 .
+                 i2xy selected_bounds
+             )
+             mempty
+        )
+        (\area selected_area →
+            (area &)
+            .
+            (places .~)
+            .
+            flip mappend (area^.places) -- mappend is left-biased
+            .
+            IntMap.mapKeys (
+                xy2i (area^.bounds)
+                .
+                (<> offset)
+                .
+                i2xy (selected_area^.bounds) {- NOTE: This should be the same
+                                                      as the selected bound, but
+                                                      if it is not (which is a
+                                                      contract violation) then
+                                                      using this value will at
+                                                      least be self-consistent.
+                                              -}
+            )
+            .
+            (^.places)
+            $
+            selected_area
+        )
 -- }}}
 
 used_area_traversal :: IndexedTraversal' XY Area Place -- {{{

@@ -8,10 +8,11 @@
 
 -- Imports {{{
 import Control.Applicative ((<$>),(<*>))
-import Control.Monad (msum)
+import Control.Monad (msum,unless)
 import Control.Lens
     ((&)
     ,(.~)
+    ,(%~)
     ,(^.)
     ,(^@..)
     ,at
@@ -24,7 +25,9 @@ import Control.Lens
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.List (foldl')
 import Data.Maybe (fromMaybe,mapMaybe)
+import Data.Monoid ((<>))
 
 import Debug.Trace
 
@@ -33,7 +36,7 @@ import qualified Test.Framework.Providers.QuickCheck2 as Quick
 import qualified Test.Framework.Providers.SmallCheck as Small
 import Test.HUnit ((@?=))
 import Test.QuickCheck.Arbitrary (Arbitrary(..),arbitraryBoundedEnum)
-import Test.QuickCheck.Gen (choose,vectorOf)
+import Test.QuickCheck.Gen (choose,listOf,vectorOf)
 import Test.QuickCheck.Property (morallyDubiousIOProperty)
 import Test.SmallCheck (Property(..))
 import Test.SmallCheck.Series (Serial(..),Series,getPositive)
@@ -231,6 +234,33 @@ main = defaultMain -- {{{
                 ]
              -- }}}
             ]
+         -- }}}
+        ,Quick.testProperty "select" $ do -- {{{
+            area ← arbitrary
+            offset ←
+                XY <$> choose (0,area^.width-1)
+                   <*> choose (0,area^.height-1)
+            selected_bounds ←
+                Bounds <$> choose (1,area^.width-offset^.x)
+                       <*> choose (1,area^.height-offset^.y)
+            edits ← listOf $
+                (,) <$> (XY <$> choose (0,selected_bounds^.width-1)
+                            <*> choose (0,selected_bounds^.height-1)
+                        )
+                    <*> arbitrary
+            let correct_new_area =
+                    foldl' (flip $ \(xy,place) → ix (offset <> xy) .~ place) area edits
+                new_area = area & select offset selected_bounds %~
+                    flip (foldl' (flip $ \(xy,place) → ix xy .~ place)) edits
+            morallyDubiousIOProperty $ do
+                unless (correct_new_area == new_area) $ do
+                    putStrLn $ ""
+                    putStrLn $ "offset = " ++ show offset
+                    putStrLn $ "selected_bounds = " ++ show selected_bounds
+                    putStrLn $ "edits = " ++ show edits
+                    putStrLn $ "correct_new_area = " ++ show correct_new_area
+                    putStrLn $ "new_area = " ++ show new_area
+                return True
          -- }}}
         ]
      -- }}}
