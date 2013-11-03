@@ -121,6 +121,13 @@ class HasBounds α where -- {{{
 
 -- Instances {{{
 
+-- XY {{{
+
+instance Monoid XY where -- {{{
+    mempty = XY 0 0
+    (XY ax ay) `mappend` (XY bx by) = XY (ax + bx) (ay + by)
+-- }}}
+
 instance Ord XY where -- {{{
     (XY ax ay) `compare` (XY bx by) =
         case ay `compare` by of
@@ -140,9 +147,6 @@ instance Ord XY where -- {{{
       | otherwise = ay > by
 -- }}}
 
-instance Monoid XY where -- {{{
-    mempty = XY 0 0
-    (XY ax ay) `mappend` (XY bx by) = XY (ax + bx) (ay + by)
 -- }}}
 
 -- Bounds {{{
@@ -159,11 +163,6 @@ instance (Contravariant f, Functor f) => Contains f Bounds where -- {{{
 -- }}}
 
 -- Area {{{
-
-instance HasBounds Area where -- {{{
-    width = bounds . width
-    height = bounds . height
--- }}}
 
 instance At Area where -- {{{
     at xy f area =
@@ -192,6 +191,11 @@ instance Functor f ⇒ Contains f Area where -- {{{
       where
         i = xy2i area xy
         is_member = IntMap.member i (area ^. places)
+-- }}}
+
+instance HasBounds Area where -- {{{
+    width = bounds . width
+    height = bounds . height
 -- }}}
 
 instance Functor f ⇒ Ixed f Area where -- {{{
