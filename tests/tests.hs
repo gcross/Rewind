@@ -36,7 +36,7 @@ import qualified Test.Framework.Providers.QuickCheck2 as Quick
 import qualified Test.Framework.Providers.SmallCheck as Small
 import Test.HUnit ((@?=))
 import Test.QuickCheck.Arbitrary (Arbitrary(..),arbitraryBoundedEnum)
-import Test.QuickCheck.Gen (choose,listOf,vectorOf)
+import Test.QuickCheck.Gen (choose,listOf,oneof,vectorOf)
 import Test.QuickCheck.Property (morallyDubiousIOProperty)
 import Test.SmallCheck (Property(..))
 import Test.SmallCheck.Series (Serial(..),Series,getPositive)
@@ -89,7 +89,14 @@ instance Arbitrary Bounds where -- {{{
     arbitrary = Bounds <$> choose (1,10) <*> choose (1,10)
 -- }}}
 
-instance Arbitrary Place where arbitrary = arbitraryBoundedEnum
+instance Arbitrary Direction where arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary Place where -- {{{
+    arbitrary = oneof
+        [return Floor
+        ,Wall <$> arbitrary
+        ]
+-- }}}
 
 -- }}}
 
