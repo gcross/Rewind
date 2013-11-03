@@ -44,6 +44,7 @@ import Control.Lens -- {{{
     )
 -- }}}
 
+import Data.Composition ((.*))
 import Data.Functor (Functor(..))
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -325,6 +326,10 @@ select offset selected_bounds =
             $
             selected_area
         )
+-- }}}
+
+selectAndTraverse :: XY → Bounds → IndexedTraversal' XY Area Place -- {{{
+selectAndTraverse = (. full_area_traversal) .* select
 -- }}}
 
 used_area_traversal :: IndexedTraversal' XY Area Place -- {{{
