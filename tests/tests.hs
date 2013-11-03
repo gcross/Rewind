@@ -89,14 +89,14 @@ instance Arbitrary Bounds where -- {{{
     arbitrary = Bounds <$> choose (1,10) <*> choose (1,10)
 -- }}}
 
-instance Arbitrary Direction where arbitrary = arbitraryBoundedEnum
-
 instance Arbitrary Place where -- {{{
     arbitrary = oneof
         [return Floor
         ,Wall <$> arbitrary
         ]
 -- }}}
+
+instance Arbitrary Wall where arbitrary = arbitraryBoundedEnum
 
 -- }}}
 

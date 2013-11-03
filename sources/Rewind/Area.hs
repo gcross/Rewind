@@ -86,13 +86,13 @@ data XY = XY -- {{{
 makeLenses ''XY
 -- }}}
 
-data Direction = -- {{{
-    N | NE | E | SE | S | SW | W | NW
+data Wall = -- {{{
+  H | V | NE | NW | SE | SW
   deriving (Bounded,Enum,Eq,Ord,Read,Show)
 -- }}}
 
 data Place = -- {{{
-    Wall Direction
+    Wall Wall
   | Floor
   deriving (Eq,Generic,Ord,Read,Show)
 -- }}}
