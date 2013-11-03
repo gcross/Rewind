@@ -15,6 +15,7 @@ import Control.Lens
     ,(%~)
     ,(^.)
     ,(^@..)
+    ,allOf
     ,at
     ,contains
     ,iact
@@ -34,7 +35,7 @@ import Debug.Trace
 import Test.Framework (defaultMain,testGroup)
 import qualified Test.Framework.Providers.QuickCheck2 as Quick
 import qualified Test.Framework.Providers.SmallCheck as Small
-import Test.HUnit ((@?=))
+import Test.HUnit ((@?=),(@=?),assertBool)
 import Test.QuickCheck.Arbitrary (Arbitrary(..),arbitraryBoundedEnum)
 import Test.QuickCheck.Gen (choose,listOf,oneof,vectorOf)
 import Test.QuickCheck.Property (morallyDubiousIOProperty)
@@ -269,6 +270,23 @@ main = defaultMain -- {{{
                     putStrLn $ "new_area = " ++ show new_area
                 return True
          -- }}}
+        ,Quick.testProperty "room" $ do
+            area ← room <$> (Bounds <$> choose (2,5) <*> choose (2,5))
+            let last_x = area^.width - 1
+                last_y = area^.height - 1
+                wall_width = area^.width - 2
+                wall_height = area^.height - 2
+            morallyDubiousIOProperty $ do
+                Wall NW @=? area ^. ix (XY 0 0)
+                Wall NE @=? area ^. ix (XY last_x 0)
+                Wall SW @=? area ^. ix (XY last_x last_y)
+                Wall SE @=? area ^. ix (XY 0 last_y)
+                assertBool "North" $ allOf (select (XY 1 0) (Bounds wall_width 1) . full_area_traversal) (== Wall H) area
+                assertBool "East" $ allOf (select (XY last_x 1) (Bounds 1 wall_height) . full_area_traversal) (== Wall V) area
+                assertBool "South" $ allOf (select (XY 1 last_y) (Bounds wall_width 1) . full_area_traversal) (== Wall H) area
+                assertBool "West" $ allOf (select (XY 0 1) (Bounds 1 wall_height) . full_area_traversal) (== Wall V) area
+                assertBool "Interior" $ allOf (select (XY 1 1) (Bounds wall_width wall_height) . full_area_traversal) (== Floor) area
+                return True
         ]
      -- }}}
     ]

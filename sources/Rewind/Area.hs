@@ -15,6 +15,7 @@ module Rewind.Area where
 
 -- Imports {{{
 import Control.Applicative (liftA2)
+import Control.Arrow (first,second)
 import Control.Exception (Exception,throw)
 import Control.Lens -- {{{
     (At(..)
@@ -233,6 +234,15 @@ instance Show Area where -- {{{
 
 -- Functions {{{
 
+areaFrom :: Bounds → (XY → Place) → [(XY,Place)] → Area -- {{{
+areaFrom bounds parent =
+    Area bounds (parent . i2xy bounds)
+    .
+    IntMap.fromList
+    .
+    map (first (xy2i bounds))
+-- }}}
+
 constantArea :: Place → Bounds → Area -- {{{
 constantArea place bounds = Area bounds (const place) mempty
 -- }}}
@@ -249,6 +259,26 @@ inBounds (XY x y) bounds
 i2xy :: HasBounds α ⇒ α → Int → XY -- {{{
 i2xy bounds = uncurry (flip XY) . flip divMod (bounds ^. width)
 {-# INLINE i2xy #-}
+-- }}}
+
+room :: Bounds → Area -- {{{
+room bounds
+  | last_x < 1 || last_y < 1 = error $ "bounds for a room be at least two in both directions, not " ++ show (bounds^.width) ++ " by " ++ show (bounds^.height)
+  | otherwise =
+        areaFrom bounds (const Floor)
+        .
+        map (second Wall)
+        $
+        [(XY 0 0,NW),(XY last_x 0,NE),(XY last_x last_y,SW),(XY 0 last_y,SE)]
+        ++
+        ([1..last_x-1] >>= \x → [(XY x 0,H),(XY x last_y,H)])
+        ++
+        ([1..last_y-1] >>= \y → [(XY 0 y,V),(XY last_x y,V)])
+  where
+    last_x = bounds^.width - 1
+    last_y = bounds^.height - 1
+    wall_width = bounds^.width - 2
+    wall_height = bounds^.height - 2
 -- }}}
 
 numberOfPlaces :: HasBounds α ⇒ α → Int -- {{{
