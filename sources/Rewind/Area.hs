@@ -233,6 +233,10 @@ instance Show Area where -- {{{
 
 -- Functions {{{
 
+constantArea :: Place → Bounds → Area -- {{{
+constantArea place bounds = Area bounds (const place) mempty
+-- }}}
+
 inBounds :: XY → Bounds → Bool -- {{{
 inBounds (XY x y) bounds
   | x < 0                 = False
